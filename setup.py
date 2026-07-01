@@ -1,0 +1,18 @@
+from setuptools import setup, find_packages 
+ 
+setup( 
+    name="multiplicateur-predictor", 
+    version="1.0.0", 
+    packages=find_packages(), 
+    install_requires=[ 
+        "fastapi==0.109.0", 
+        "uvicorn[standard]==0.27.0", 
+        "gunicorn==21.2.0", 
+        "joblib==1.3.2", 
+        "pydantic==2.5.3", 
+        "python-multipart==0.0.6", 
+        "httpx==0.26.0", 
+        "pytest==8.0.0", 
+        "pytest-asyncio==0.21.1" 
+    ], 
+) 
