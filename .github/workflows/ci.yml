@@ -13,4 +13,6 @@ jobs:
     - name: Install package 
       run: pip install -e . 
     - name: Run tests 
-      run: python -m pytest src/tests/ -v 
+      run: |
+        export PYTHONPATH=$(pwd)
+        python -m pytest src/tests/ -v
