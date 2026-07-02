@@ -14,5 +14,5 @@ jobs:
       run: pip install -e . 
     - name: Run tests 
       run: |
-        export PYTHONPATH=$(pwd)
+        export PYTHONPATH=$GITHUB_WORKSPACE
         python -m pytest src/tests/ -v
