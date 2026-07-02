@@ -1,8 +1,8 @@
 from typing import Dict, List, Tuple
 import numpy as np
-from ..models.statistical import StatisticalModel
-from ..models.bayesian import BayesianModel
-from ..models.timeseries import TimeSeriesModel
+from src.models.statistical import StatisticalModel
+from src.models.bayesian import BayesianModel
+from src.models.timeseries import TimeSeriesModel
 
 class ModelFusion:
     """Fusionne les prédictions de plusieurs modèles avec pondération dynamique"""
