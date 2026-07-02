@@ -1,5 +1,5 @@
 # ========== NOUVELLES IMPORTS ==========
-from core.fusion import ModelFusion
+from src.core.fusion import ModelFusion
 
 # ========== INITIALISATION ==========
 working_mem = WorkingMemory()
