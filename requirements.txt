@@ -6,3 +6,4 @@ pydantic==2.5.3
 python-multipart==0.0.6 
 httpx==0.26.0 
 pytest-asyncio==0.21.1 
+numpy==1.26.4
