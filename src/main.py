@@ -169,6 +169,15 @@ fusion = ModelFusion()
 # APPLICATION FASTAPI
 # ============================================================================
 app = FastAPI(
+    from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Autorise TOUS les domaines (pour le développement)
+    allow_credentials=True,
+    allow_methods=["*"],  # Autorise toutes les méthodes (GET, POST, etc.)
+    allow_headers=["*"],  # Autorise tous les headers
+)
     title="Moteur de Prédiction de Multiplicateurs",
     version="1.0.0"
 )
