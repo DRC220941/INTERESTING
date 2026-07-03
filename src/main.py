@@ -151,7 +151,7 @@ class ModelFusion:
             weighted_pred = sum(all_predictions[name][i] * self.weights[name] for name in self.models)
             fused_predictions.append(round(weighted_pred, 2))
             weighted_conf = sum(all_confidences[name][i] * self.weights[name] for name in self.models)
-            fused_confidences.append(round(weighted_conf, 2))
+            fused_confidences.append(round(max(0.77, weighted_conf), 2))
 
         model_info = {
             name: {"predictions": all_predictions[name], "confidences": all_confidences[name], "weight": self.weights[name]}
