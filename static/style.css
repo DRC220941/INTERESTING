@@ -4,10 +4,12 @@
     --secondary: #2ecc71;
     --danger: #e74c3c;
     --warning: #f39c12;
+    --info: #1abc9c;
     --dark: #2c3e50;
     --light: #ecf0f1;
     --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     --border-radius: 8px;
+    --transition: all 0.3s ease;
 }
 
 * {
@@ -43,6 +45,7 @@ header h1 {
 .subtitle {
     color: #7f8c8d;
     font-size: 1.1rem;
+    margin-bottom: 20px;
 }
 
 /* ===== CARDS ===== */
@@ -52,7 +55,7 @@ header h1 {
     box-shadow: var(--shadow);
     padding: 25px;
     margin-bottom: 20px;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    transition: var(--transition);
 }
 
 .card:hover {
@@ -71,6 +74,7 @@ header h1 {
 .input-group {
     display: flex;
     gap: 10px;
+    margin-bottom: 10px;
 }
 
 input[type="text"] {
@@ -79,13 +83,26 @@ input[type="text"] {
     border: 1px solid #ddd;
     border-radius: var(--border-radius);
     font-size: 16px;
-    transition: border 0.3s ease;
+    transition: var(--transition);
 }
 
 input[type="text"]:focus {
     border-color: var(--primary);
     outline: none;
     box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+}
+
+.input-hint {
+    font-size: 0.9rem;
+    color: #7f8c8d;
+    margin-top: 5px;
+}
+
+.input-hint code {
+    background: var(--light);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: monospace;
 }
 
 /* ===== BOUTONS ===== */
@@ -95,7 +112,7 @@ button {
     border-radius: var(--border-radius);
     font-size: 16px;
     cursor: pointer;
-    transition: background-color 0.3s ease, transform 0.2s ease;
+    transition: var(--transition);
 }
 
 button:active {
@@ -129,10 +146,17 @@ button:active {
     background-color: #c0392b;
 }
 
+.btn-small {
+    padding: 6px 12px;
+    font-size: 14px;
+    margin-right: 5px;
+}
+
 .history-controls {
     display: flex;
     gap: 10px;
     margin-bottom: 15px;
+    flex-wrap: wrap;
 }
 
 /* ===== RÉSULTATS ===== */
@@ -183,11 +207,90 @@ button:active {
     padding: 15px;
     border-radius: var(--border-radius);
     border-left: 4px solid var(--primary);
+    transition: var(--transition);
+}
+
+.model-card:hover {
+    transform: translateX(5px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .model-card h3 {
     color: var(--primary);
     margin-bottom: 10px;
+}
+
+/* ===== MOTIFS ===== */
+.patterns-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.pattern-card {
+    background: rgba(52, 152, 219, 0.1);
+    padding: 10px;
+    border-radius: var(--border-radius);
+    border-left: 3px solid var(--primary);
+}
+
+.pattern-card h4 {
+    color: var(--primary);
+    margin-bottom: 5px;
+    font-size: 0.9rem;
+}
+
+/* ===== HYPOTHÈSES ===== */
+.hypotheses-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #ddd;
+}
+
+.tab-btn {
+    padding: 8px 16px;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: var(--dark);
+    cursor: pointer;
+    font-size: 1rem;
+    transition: var(--transition);
+}
+
+.tab-btn:hover {
+    color: var(--primary);
+}
+
+.tab-btn.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+}
+
+.hypotheses-list {
+    display: grid;
+    gap: 15px;
+}
+
+.hypothesis-card {
+    background: var(--light);
+    padding: 15px;
+    border-radius: var(--border-radius);
+    border-left: 4px solid var(--warning);
+    transition: var(--transition);
+}
+
+.hypothesis-card:hover {
+    transform: translateX(5px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.hypothesis-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
 }
 
 /* ===== HISTORIQUE ===== */
@@ -219,7 +322,7 @@ table tr:hover {
 
 /* ===== WARNINGS ET ERREURS ===== */
 .warnings {
-    margin-top: 15px;
+    margin: 15px 0;
     padding: 10px;
     border-radius: var(--border-radius);
     text-align: center;
@@ -250,7 +353,20 @@ table tr:hover {
         grid-template-columns: 1fr;
     }
 
+    .patterns-grid {
+        grid-template-columns: 1fr;
+    }
+
     header h1 {
         font-size: 1.8rem;
+    }
+
+    .input-group {
+        flex-direction: column;
+    }
+
+    button {
+        width: 100%;
+        margin-top: 10px;
     }
 }
