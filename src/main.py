@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from pydantic import BaseModel, validator
+from src.core.memory import WorkingMemory, LearningMemory
 from typing import List, Dict, Tuple
 import sqlite3
 import os
@@ -188,6 +189,7 @@ class ModelFusion:
 # ============================================================================
 working_mem = WorkingMemory()
 fusion = ModelFusion()
+learning_mem = LearningMemory()
 
 # ============================================================================
 # APPLICATION FASTAPI + CORS
