@@ -1,5 +1,5 @@
 import sqlite3
-from typing import List, Dict, Optional
+from typing import List, Tuple, Dict, Optional, Any
 from datetime import datetime
 
 class WorkingMemory:
