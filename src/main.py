@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from typing import List, Dict, Tuple
 import sqlite3
 import os
@@ -14,6 +15,13 @@ from collections import defaultdict
 # ============================================================================
 class MultiplicateurRequest(BaseModel):
     values: List[float] = []
+
+    @validator('values', pre=True)
+    def parse_semicolon_separated(cls, v):
+        if isinstance(v, str):
+            # Remplacez les points-virgules par des virgules pour la compatibilité
+            return [float(x.strip()) for x in v.replace(';', ',').split(',') if x.strip()]
+        return v
 
 class PredictionResponse(BaseModel):
     predictions: List[float] = []
