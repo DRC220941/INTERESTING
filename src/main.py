@@ -188,6 +188,7 @@ app = FastAPI(
     title="Moteur de Prédiction de Multiplicateurs",
     version="1.0.0"
 )
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # ✅ ACTIVEZ LE CORS ICI (juste après la création de l'app)
 app.add_middleware(
@@ -244,5 +245,5 @@ async def reset_memory():
 @app.get("/history")
 async def get_history():
     return {"history": [round(v, 2) for v in working_mem.get_all()], "count": len(working_mem.get_all())}
-app.mount("/static", StaticFiles(directory="static"), name="static")
+
 
