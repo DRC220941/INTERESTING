@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List, Dict, Tuple
 import sqlite3
@@ -243,3 +244,4 @@ async def reset_memory():
 @app.get("/history")
 async def get_history():
     return {"history": [round(v, 2) for v in working_mem.get_all()], "count": len(working_mem.get_all())}
+app.mount("/static", StaticFiles(directory="static"), name="static")
