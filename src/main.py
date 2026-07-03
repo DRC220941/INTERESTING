@@ -220,3 +220,6 @@ async def reset_memory():
 @app.get("/history")
 async def get_history():
     return {"history": [round(v, 2) for v in working_mem.get_all()], "count": len(working_mem.get_all())}
+
+from fastapi.staticfiles import StaticFiles
+app.mount("/static", StaticFiles(directory="static"), name="static")
