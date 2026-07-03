@@ -9,54 +9,95 @@
 </head>
 <body>
     <div class="container">
-        <h1>🎯 Moteur de Prédiction de Multiplicateurs</h1>
+        <header>
+            <h1>📊 Moteur de Prédiction de Multiplicateurs</h1>
+            <p class="subtitle">Saisissez des valeurs pour obtenir des prédictions basées sur 3 modèles.</p>
+        </header>
 
-        <!-- Formulaire de saisie -->
+        <!-- Formulaire -->
         <div class="card">
-            <h2>Saisir des multiplicateurs</h2>
+            <h2>🔢 Saisir des multiplicateurs</h2>
             <form id="predictForm">
-                <input type="text" id="valuesInput" placeholder="Ex: 1.5, 2.0, 1.8, 3.0" required>
-                <button type="submit">Prédire</button>
+                <div class="input-group">
+                    <input type="text" id="valuesInput"
+                           placeholder="Ex: 1.5, 2.0, 1.8, 3.0, 2.5"
+                           required>
+                    <button type="submit" class="btn-primary">Prédire</button>
+                </div>
             </form>
         </div>
 
         <!-- Résultats -->
         <div class="card" id="resultsCard" style="display: none;">
-            <h2>Résultats</h2>
-            <div id="predictions"></div>
-            <div id="confidences"></div>
-            <div id="features"></div>
-            <div id="warnings"></div>
-            <canvas id="chart" width="400" height="200"></canvas>
+            <h2>📈 Résultats</h2>
+            <div class="results-grid">
+                <div class="result-item">
+                    <h3>Prédictions</h3>
+                    <div id="predictions" class="result-value"></div>
+                </div>
+                <div class="result-item">
+                    <h3>Confiances</h3>
+                    <div id="confidences" class="result-value"></div>
+                </div>
+                <div class="result-item">
+                    <h3>Dernière valeur</h3>
+                    <div id="lastValue" class="result-value"></div>
+                </div>
+                <div class="result-item">
+                    <h3>Moyenne</h3>
+                    <div id="meanValue" class="result-value"></div>
+                </div>
+            </div>
+            <div id="warnings" class="warnings"></div>
+            <div class="chart-container">
+                <canvas id="chart"></canvas>
+            </div>
+        </div>
+
+        <!-- Détails des modèles -->
+        <div class="card" id="modelsCard" style="display: none;">
+            <h2>🤖 Détails des modèles</h2>
+            <div id="modelsDetails"></div>
         </div>
 
         <!-- Historique -->
         <div class="card">
-            <h2>Historique</h2>
-            <button id="loadHistory">Charger l'historique</button>
-            <button id="resetMemory">Réinitialiser</button>
-            <div id="historyData"></div>
+            <h2>📜 Historique</h2>
+            <div class="history-controls">
+                <button id="loadHistory" class="btn-secondary">Charger l'historique</button>
+                <button id="resetMemory" class="btn-danger">Réinitialiser</button>
+            </div>
+            <div id="historyData" class="history-table"></div>
         </div>
     </div>
 
     <script>
-        const API_URL = "http://127.0.0.1:8000";
+        // Utilisez l'URL de production pour Render
+        const API_URL = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+            ? "http://127.0.0.1:8000"
+            : "https://multiplicateur-predictor.onrender.com";
 
         // Fonction pour appeler l'API
         async function callAPI(endpoint, method = "GET", body = null) {
-            const options = {
-                method,
-                headers: { "Content-Type": "application/json" }
-            };
+            const options = { method, headers: { "Content-Type": "application/json" } };
             if (body) options.body = JSON.stringify(body);
 
             try {
                 const response = await fetch(`${API_URL}${endpoint}`, options);
+                if (!response.ok) throw new Error(`Erreur ${response.status}: ${response.statusText}`);
                 return await response.json();
             } catch (error) {
                 console.error("Erreur API:", error);
+                showError(error.message);
                 return null;
             }
+        }
+
+        // Afficher une erreur
+        function showError(message) {
+            const warningsEl = document.getElementById("warnings");
+            warningsEl.innerHTML = `<p class="error">❌ ${message}</p>`;
+            warningsEl.style.display = "block";
         }
 
         // Formulaire de prédiction
@@ -66,7 +107,7 @@
             const values = input.split(",").map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
 
             if (values.length === 0) {
-                alert("Veuillez entrer des valeurs valides (ex: 1.5, 2.0, 1.8)");
+                showError("Veuillez entrer des valeurs valides (ex: 1.5, 2.0, 1.8)");
                 return;
             }
 
@@ -81,71 +122,172 @@
         // Afficher les résultats
         function displayResults(result) {
             const resultsCard = document.getElementById("resultsCard");
+            const modelsCard = document.getElementById("modelsCard");
+
+            // Affiche les cartes
             resultsCard.style.display = "block";
+            modelsCard.style.display = "block";
 
-            // Prédictions
-            document.getElementById("predictions").innerHTML = `
-                <p><strong>Prédictions :</strong> [${result.predictions.join(", ")}]</p>
-            `;
-
-            // Confiances
-            document.getElementById("confidences").innerHTML = `
-                <p><strong>Confiances :</strong> [${result.confidences.join(", ")}]</p>
-            `;
+            // Prédictions et confiances
+            document.getElementById("predictions").textContent = `[${result.predictions.join(", ")}]`;
+            document.getElementById("confidences").textContent = `[${result.confidences.join(", ")}]`;
 
             // Top Features
             const features = result.top_features;
-            document.getElementById("features").innerHTML = `
-                <p><strong>Dernière valeur :</strong> ${features.last_value}</p>
-                <p><strong>Moyenne :</strong> ${features.mean}</p>
-                <p><strong>Nombre de valeurs :</strong> ${features.count}</p>
-            `;
+            document.getElementById("lastValue").textContent = features.last_value || "N/A";
+            document.getElementById("meanValue").textContent = features.mean || "N/A";
 
             // Warnings
-            document.getElementById("warnings").innerHTML = result.warnings.length > 0
-                ? `<p style="color: orange;">⚠️ ${result.warnings.join(", ")}</p>`
-                : `<p style="color: green;">✅ Aucune alerte</p>`;
+            const warningsEl = document.getElementById("warnings");
+            if (result.warnings.length > 0) {
+                warningsEl.innerHTML = `<p class="warning">⚠️ ${result.warnings.join(", ")}</p>`;
+            } else {
+                warningsEl.innerHTML = `<p class="success">✅ Aucune alerte</p>`;
+            }
+            warningsEl.style.display = "block";
+
+            // Détails des modèles
+            displayModelsDetails(result.top_features.models);
 
             // Graphique
+            displayChart(result.predictions, result.confidences);
+
+            // Historique
+            await loadHistory();
+        }
+
+        // Afficher les détails des modèles
+        function displayModelsDetails(models) {
+            const container = document.getElementById("modelsDetails");
+            let html = `<div class="models-grid">`;
+
+            for (const [name, data] of Object.entries(models)) {
+                html += `
+                    <div class="model-card">
+                        <h3>${name.toUpperCase()}</h3>
+                        <p><strong>Poids:</strong> ${data.weight}</p>
+                        <p><strong>Prédictions:</strong> [${data.predictions.join(", ")}]</p>
+                        <p><strong>Confiances:</strong> [${data.confidences.join(", ")}]</p>
+                    </div>
+                `;
+            }
+
+            html += `</div>`;
+            container.innerHTML = html;
+        }
+
+        // Afficher le graphique
+        function displayChart(predictions, confidences) {
             const ctx = document.getElementById("chart").getContext("2d");
             if (window.chart) window.chart.destroy();
+
             window.chart = new Chart(ctx, {
                 type: "bar",
                 data: {
-                    labels: ["Prédiction 1", "Prédiction 2", "Prédiction 3"],
-                    datasets: [{
-                        label: "Valeurs prédites",
-                        data: result.predictions,
-                        backgroundColor: ["#4CAF50", "#2196F3", "#FFC107"]
-                    }]
+                    labels: predictions.map((_, i) => `Prédiction ${i + 1}`),
+                    datasets: [
+                        {
+                            label: "Valeurs prédites",
+                            data: predictions,
+                            backgroundColor: [
+                                "rgba(76, 175, 80, 0.7)",  // Vert
+                                "rgba(33, 150, 243, 0.7)", // Bleu
+                                "rgba(255, 193, 7, 0.7)"   // Orange
+                            ],
+                            borderColor: [
+                                "rgba(76, 175, 80, 1)",
+                                "rgba(33, 150, 243, 1)",
+                                "rgba(255, 193, 7, 1)"
+                            ],
+                            borderWidth: 1
+                        },
+                        {
+                            label: "Confiances",
+                            data: confidences,
+                            type: "line",
+                            borderColor: "rgba(255, 99, 132, 1)",
+                            backgroundColor: "rgba(255, 99, 132, 0.2)",
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0.4
+                        }
+                    ]
                 },
                 options: {
                     responsive: true,
-                    scales: { y: { beginAtZero: false } }
+                    scales: {
+                        y: { beginAtZero: false }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) label += ': ';
+                                    label += context.parsed.y;
+                                    return label;
+                                }
+                            }
+                        }
+                    }
                 }
             });
         }
 
         // Charger l'historique
-        document.getElementById("loadHistory").addEventListener("click", async () => {
+        async function loadHistory() {
             const result = await callAPI("/history");
             if (result) {
-                document.getElementById("historyData").innerHTML = `
-                    <p><strong>Historique :</strong> [${result.history.join(", ")}]</p>
-                    <p><strong>Nombre total :</strong> ${result.count}</p>
+                const historyData = document.getElementById("historyData");
+                if (result.history.length === 0) {
+                    historyData.innerHTML = "<p>Aucune donnée dans l'historique.</p>";
+                    return;
+                }
+
+                let html = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Index</th>
+                                <th>Valeur</th>
+                            </tr>
+                        </thead>
+                        <tbody>
                 `;
+
+                result.history.forEach((value, index) => {
+                    html += `
+                        <tr>
+                            <td>${index + 1}</td>
+                            <td>${value}</td>
+                        </tr>
+                    `;
+                });
+
+                html += `
+                        </tbody>
+                    </table>
+                    <p><strong>Total:</strong> ${result.count} valeurs</p>
+                `;
+
+                historyData.innerHTML = html;
             }
-        });
+        }
 
         // Réinitialiser la mémoire
+        document.getElementById("loadHistory").addEventListener("click", loadHistory);
         document.getElementById("resetMemory").addEventListener("click", async () => {
             const result = await callAPI("/reset", "POST");
             if (result) {
-                alert("Mémoire réinitialisée !");
-                document.getElementById("historyData").innerHTML = "";
+                document.getElementById("historyData").innerHTML = "<p>Mémoire réinitialisée !</p>";
                 document.getElementById("resultsCard").style.display = "none";
+                document.getElementById("modelsCard").style.display = "none";
+                showError("✅ Mémoire réinitialisée avec succès !");
             }
         });
+
+        // Charger l'historique au démarrage
+        document.addEventListener("DOMContentLoaded", loadHistory);
     </script>
 </body>
 </html>
