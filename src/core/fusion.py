@@ -1,5 +1,6 @@
 from typing import List, Tuple, Dict, Optional, Any
 import numpy as np
+import random 
 from src.models.pattern_detection import PatternDetector
 from src.core.hypothesis import HypothesisGenerator
 from src.core.memory import LearningMemory
