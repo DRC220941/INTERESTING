@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moteur de Prédiction de Multiplicateurs</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Moteur de Prédiction de Multiplicateurs</h1>
+
+        <!-- Formulaire de saisie -->
+        <div class="card">
+            <h2>Saisir des multiplicateurs</h2>
+            <form id="predictForm">
+                <input type="text" id="valuesInput" placeholder="Ex: 1.5, 2.0, 1.8, 3.0" required>
+                <button type="submit">Prédire</button>
+            </form>
+        </div>
+
+        <!-- Résultats -->
+        <div class="card" id="resultsCard" style="display: none;">
+            <h2>Résultats</h2>
+            <div id="predictions"></div>
+            <div id="confidences"></div>
+            <div id="features"></div>
+            <div id="warnings"></div>
+            <canvas id="chart" width="400" height="200"></canvas>
+        </div>
+
+        <!-- Historique -->
+        <div class="card">
+            <h2>Historique</h2>
+            <button id="loadHistory">Charger l'historique</button>
+            <button id="resetMemory">Réinitialiser</button>
+            <div id="historyData"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "https://multiplicateur-predictor.onrender.com";
+
+        // Fonction pour appeler l'API
+        async function callAPI(endpoint, method = "GET", body = null) {
+            const options = {
+                method,
+                headers: { "Content-Type": "application/json" }
+            };
+            if (body) options.body = JSON.stringify(body);
+
+            try {
+                const response = await fetch(`${API_URL}${endpoint}`, options);
+                return await response.json();
+            } catch (error) {
+                console.error("Erreur API:", error);
+                return null;
+            }
+        }
+
+        // Formulaire de prédiction
+        document.getElementById("predictForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const input = document.getElementById("valuesInput").value;
+            const values = input.split(",").map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
+
+            if (values.length === 0) {
+                alert("Veuillez entrer des valeurs valides (ex: 1.5, 2.0, 1.8)");
+                return;
+            }
+
+            const data = { values };
+            const result = await callAPI("/predict", "POST", data);
+
+            if (result) {
+                displayResults(result);
+            }
+        });
+
+        // Afficher les résultats
+        function displayResults(result) {
+            const resultsCard = document.getElementById("resultsCard");
+            resultsCard.style.display = "block";
+
+            // Prédictions
+            document.getElementById("predictions").innerHTML = `
+                <p><strong>Prédictions :</strong> [${result.predictions.join(", ")}]</p>
+            `;
+
+            // Confiances
+            document.getElementById("confidences").innerHTML = `
+                <p><strong>Confiances :</strong> [${result.confidences.join(", ")}]</p>
+            `;
+
+            // Top Features
+            const features = result.top_features;
+            document.getElementById("features").innerHTML = `
+                <p><strong>Dernière valeur :</strong> ${features.last_value}</p>
+                <p><strong>Moyenne :</strong> ${features.mean}</p>
+                <p><strong>Nombre de valeurs :</strong> ${features.count}</p>
+            `;
+
+            // Warnings
+            document.getElementById("warnings").innerHTML = result.warnings.length > 0
+                ? `<p style="color: orange;">⚠️ ${result.warnings.join(", ")}</p>`
+                : `<p style="color: green;">✅ Aucune alerte</p>`;
+
+            // Graphique
+            const ctx = document.getElementById("chart").getContext("2d");
+            if (window.chart) window.chart.destroy();
+            window.chart = new Chart(ctx, {
+                type: "bar",
+                data: {
+                    labels: ["Prédiction 1", "Prédiction 2", "Prédiction 3"],
+                    datasets: [{
+                        label: "Valeurs prédites",
+                        data: result.predictions,
+                        backgroundColor: ["#4CAF50", "#2196F3", "#FFC107"]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: { y: { beginAtZero: false } }
+                }
+            });
+        }
+
+        // Charger l'historique
+        document.getElementById("loadHistory").addEventListener("click", async () => {
+            const result = await callAPI("/history");
+            if (result) {
+                document.getElementById("historyData").innerHTML = `
+                    <p><strong>Historique :</strong> [${result.history.join(", ")}]</p>
+                    <p><strong>Nombre total :</strong> ${result.count}</p>
+                `;
+            }
+        });
+
+        // Réinitialiser la mémoire
+        document.getElementById("resetMemory").addEventListener("click", async () => {
+            const result = await callAPI("/reset", "POST");
+            if (result) {
+                alert("Mémoire réinitialisée !");
+                document.getElementById("historyData").innerHTML = "";
+                document.getElementById("resultsCard").style.display = "none";
+            }
+        });
+    </script>
+</body>
+</html>
