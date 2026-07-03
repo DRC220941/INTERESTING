@@ -1,5 +1,5 @@
 import numpy as np
-from typing import List, Tuple
+from typing import List, Tuple, Dict, Optional, Any
 
 class TimeSeriesModel:
     def __init__(self):
