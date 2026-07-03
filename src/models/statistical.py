@@ -1,5 +1,5 @@
 import numpy as np
-from typing import List, Tuple
+from typing import List, Tuple, Dict, Optional, Any
 
 class StatisticalModel:
     def __init__(self, window_size: int = 5):
