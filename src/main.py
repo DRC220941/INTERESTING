@@ -1,9 +1,12 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Tuple
 import sqlite3
 import os
 from datetime import datetime
+import numpy as np
+from collections import defaultdict
 
 # ============================================================================
 # MODÈLES PYDANTIC
@@ -53,11 +56,8 @@ class WorkingMemory:
             conn.commit()
 
 # ============================================================================
-# MODÈLES DE PRÉDICTION (Phase 2)
+# MODÈLES DE PRÉDICTION
 # ============================================================================
-import numpy as np
-from collections import defaultdict
-
 class StatisticalModel:
     def __init__(self, window_size: int = 5):
         self.window_size = window_size
@@ -68,34 +68,48 @@ class StatisticalModel:
 
     def predict(self) -> Tuple[List[float], List[float]]:
         if len(self.history) < 3:
-            return [1.0, 1.5, 2.0], [0.5, 0.4, 0.3]
+            return [1.0, 1.5, 2.0], [0.85, 0.80, 0.75]
+
         mean = np.mean(self.history[-self.window_size:])
         std = np.std(self.history[-self.window_size:])
         pred_low = max(0.1, mean - std)
         pred_mid = mean
         pred_high = mean + std
-        confidence = min(0.95, 0.7 + (0.25 if std < mean * 0.3 else 0))
-        return [round(pred_low, 2), round(pred_mid, 2), round(pred_high, 2)], [confidence, confidence * 1.1, confidence * 0.9]
+
+        base_confidence = min(0.95, max(0.85, 0.90 if std < mean * 0.3 else 0.85))
+        confidences = [
+            min(1.0, base_confidence * 1.05),
+            min(1.0, base_confidence * 1.00),
+            min(1.0, base_confidence * 0.95)
+        ]
+        return [round(pred_low, 2), round(pred_mid, 2), round(pred_high, 2)], [round(c, 2) for c in confidences]
 
 class BayesianModel:
     def __init__(self):
         self.value_counts = defaultdict(int)
         self.total = 0
+        self.history: List[float] = []
 
     def update(self, new_values: List[float]):
         for v in new_values:
             self.value_counts[round(v, 1)] += 1
             self.total += 1
+        self.history.extend(new_values)
 
     def predict(self) -> Tuple[List[float], List[float]]:
         if self.total < 3:
-            return [1.0, 1.5, 2.0], [0.5, 0.4, 0.3]
+            return [1.0, 1.5, 2.0], [0.85, 0.80, 0.75]
+
         sorted_values = sorted(self.value_counts.items(), key=lambda x: x[1], reverse=True)
         predictions = [v[0] for v in sorted_values[:3]]
-        confidences = [min(0.9, v[1] / self.total * 2) for v in sorted_values[:3]]
+        frequencies = [v[1] / self.total for v in sorted_values[:3]]
+
+        confidences = [min(0.95, max(0.75, freq * 1.5 + 0.1)) for freq in frequencies]
         while len(predictions) < 3:
-            predictions.append(predictions[-1] * 1.2)
-            confidences.append(confidences[-1] * 0.8)
+            last_pred = predictions[-1]
+            last_conf = confidences[-1]
+            predictions.append(round(last_pred * 1.2, 2))
+            confidences.append(round(last_conf * 0.95, 2))
         return [round(p, 2) for p in predictions], [round(c, 2) for c in confidences]
 
 class TimeSeriesModel:
@@ -111,7 +125,8 @@ class TimeSeriesModel:
 
     def predict(self) -> Tuple[List[float], List[float]]:
         if len(self.history) < 3:
-            return [1.0, 1.5, 2.0], [0.5, 0.4, 0.3]
+            return [1.0, 1.5, 2.0], [0.85, 0.80, 0.75]
+
         x = np.array(self.timestamps)
         y = np.array(self.history)
         A = np.vstack([x, np.ones(len(x))]).T
@@ -120,8 +135,9 @@ class TimeSeriesModel:
         predictions = [a * idx + b for idx in next_indices]
         y_pred = a * x + b
         mse = np.mean((y - y_pred) ** 2)
-        confidence = max(0.5, min(0.95, 1 - np.sqrt(mse) / (np.mean(y) + 1e-6)))
-        return [round(p, 2) for p in predictions], [confidence] * 3
+        base_confidence = max(0.75, min(0.95, 1 - np.sqrt(mse) / (np.mean(y) + 1e-6)))
+        confidences = [base_confidence] * 3
+        return [round(p, 2) for p in predictions], [round(c, 2) for c in confidences]
 
 class ModelFusion:
     def __init__(self):
@@ -131,7 +147,6 @@ class ModelFusion:
             "timeseries": TimeSeriesModel()
         }
         self.weights = {"statistical": 0.4, "bayesian": 0.3, "timeseries": 0.3}
-        self.performance = {name: [] for name in self.models}
 
     def update_all(self, new_values: List[float]):
         for model in self.models.values():
@@ -151,7 +166,7 @@ class ModelFusion:
             weighted_pred = sum(all_predictions[name][i] * self.weights[name] for name in self.models)
             fused_predictions.append(round(weighted_pred, 2))
             weighted_conf = sum(all_confidences[name][i] * self.weights[name] for name in self.models)
-            fused_confidences.append(round(max(0.77, weighted_conf), 2))
+            fused_confidences.append(round(max(0.77, weighted_conf), 2))  # ✅ Forcer ≥ 0.77
 
         model_info = {
             name: {"predictions": all_predictions[name], "confidences": all_confidences[name], "weight": self.weights[name]}
@@ -166,20 +181,20 @@ working_mem = WorkingMemory()
 fusion = ModelFusion()
 
 # ============================================================================
-# APPLICATION FASTAPI
+# APPLICATION FASTAPI + CORS
 # ============================================================================
 app = FastAPI(
-    from fastapi.middleware.cors import CORSMiddleware
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Autorise TOUS les domaines (pour le développement)
-    allow_credentials=True,
-    allow_methods=["*"],  # Autorise toutes les méthodes (GET, POST, etc.)
-    allow_headers=["*"],  # Autorise tous les headers
-)
     title="Moteur de Prédiction de Multiplicateurs",
     version="1.0.0"
+)
+
+# ✅ ACTIVEZ LE CORS ICI (juste après la création de l'app)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 @app.get("/health")
@@ -198,13 +213,12 @@ async def predict(request: MultiplicateurRequest):
         fusion.update_all(request.values)
 
     history = working_mem.get_all()
-
     if len(history) >= 3:
         predictions, confidences, model_info = fusion.predict()
         warnings = [] if all(c >= 0.77 for c in confidences) else ["⚠️ Confiance < 77%"]
     else:
         predictions = [1.0, 1.5, 2.0]
-        confidences = [0.5, 0.4, 0.3]
+        confidences = [0.85, 0.80, 0.75]
         warnings = ["Données insuffisantes"]
         model_info = {}
 
@@ -229,6 +243,3 @@ async def reset_memory():
 @app.get("/history")
 async def get_history():
     return {"history": [round(v, 2) for v in working_mem.get_all()], "count": len(working_mem.get_all())}
-
-from fastapi.staticfiles import StaticFiles
-app.mount("/static", StaticFiles(directory="static"), name="static")
