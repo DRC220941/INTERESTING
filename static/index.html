@@ -11,18 +11,22 @@
     <div class="container">
         <header>
             <h1>📊 Moteur de Prédiction de Multiplicateurs</h1>
-            <p class="subtitle">Saisissez des valeurs pour obtenir des prédictions basées sur 3 modèles.</p>
+            <p class="subtitle">Saisissez des multiplicateurs séparés par <strong>;</strong> ou <strong>,</strong> pour obtenir des prédictions.</p>
         </header>
 
-        <!-- Formulaire -->
+        <!-- Formulaire de saisie -->
         <div class="card">
-            <h2>🔢 Saisir des multiplicateurs</h2>
+            <h2>🔢 Saisie des multiplicateurs</h2>
             <form id="predictForm">
                 <div class="input-group">
                     <input type="text" id="valuesInput"
-                           placeholder="Ex: 1.5, 2.0, 1.8, 3.0, 2.5"
+                           placeholder="Ex: 1.5; 2.0; 1.8; 3.0 ou 1.5, 2.0, 1.8, 3.0"
                            required>
                     <button type="submit" class="btn-primary">Prédire</button>
+                </div>
+                <div class="input-hint">
+                    <p>✅ Séparez les valeurs par <strong>;</strong> ou <strong>,</strong></p>
+                    <p>Exemples: <code>1.5; 2.0; 1.8</code> ou <code>1.5, 2.0, 1.8, 3.0</code></p>
                 </div>
             </form>
         </div>
@@ -49,6 +53,19 @@
                 </div>
             </div>
             <div id="warnings" class="warnings"></div>
+
+            <!-- Motifs détectés -->
+            <div id="patternsSection" style="display: none;">
+                <h3>🔍 Motifs détectés</h3>
+                <div id="patterns"></div>
+            </div>
+
+            <!-- Nouvelle hypothèse -->
+            <div id="hypothesisSection" style="display: none;">
+                <h3>💡 Nouvelle hypothèse générée</h3>
+                <div id="newHypothesis" class="hypothesis-card"></div>
+            </div>
+
             <div class="chart-container">
                 <canvas id="chart"></canvas>
             </div>
@@ -60,22 +77,37 @@
             <div id="modelsDetails"></div>
         </div>
 
+        <!-- Hypothèses -->
+        <div class="card" id="hypothesesCard" style="display: none;">
+            <h2>🧪 Hypothèses</h2>
+            <div class="hypotheses-tabs">
+                <button class="tab-btn active" onclick="showHypotheses('pending')">En attente</button>
+                <button class="tab-btn" onclick="showHypotheses('validated')">Validées</button>
+                <button class="tab-btn" onclick="showHypotheses('rejected')">Rejetées</button>
+            </div>
+            <div id="hypothesesContent"></div>
+        </div>
+
         <!-- Historique -->
         <div class="card">
             <h2>📜 Historique</h2>
             <div class="history-controls">
                 <button id="loadHistory" class="btn-secondary">Charger l'historique</button>
                 <button id="resetMemory" class="btn-danger">Réinitialiser</button>
+                <button id="loadHypotheses" class="btn-secondary">Charger les hypothèses</button>
             </div>
             <div id="historyData" class="history-table"></div>
         </div>
     </div>
 
     <script>
-        // Utilisez l'URL de production pour Render
+        // Utilisez l'URL appropriée (locale ou production)
         const API_URL = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
             ? "http://127.0.0.1:8000"
             : "https://multiplicateur-predictor.onrender.com";
+
+        // Variables globales
+        let currentHypotheses = { pending: [], validated: [], rejected: [] };
 
         // Fonction pour appeler l'API
         async function callAPI(endpoint, method = "GET", body = null) {
@@ -104,14 +136,13 @@
         document.getElementById("predictForm").addEventListener("submit", async (e) => {
             e.preventDefault();
             const input = document.getElementById("valuesInput").value;
-            const values = input.split(",").map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
 
-            if (values.length === 0) {
-                showError("Veuillez entrer des valeurs valides (ex: 1.5, 2.0, 1.8)");
+            if (!input.trim()) {
+                showError("Veuillez entrer des valeurs.");
                 return;
             }
 
-            const data = { values };
+            const data = { values: input };  // ✅ Envoie la chaîne brute (le backend gère ; et ,)
             const result = await callAPI("/predict", "POST", data);
 
             if (result) {
@@ -123,6 +154,7 @@
         function displayResults(result) {
             const resultsCard = document.getElementById("resultsCard");
             const modelsCard = document.getElementById("modelsCard");
+            const hypothesesCard = document.getElementById("hypothesesCard");
 
             // Affiche les cartes
             resultsCard.style.display = "block";
@@ -146,14 +178,72 @@
             }
             warningsEl.style.display = "block";
 
+            // Motifs détectés
+            if (result.patterns && Object.keys(result.patterns).length > 0) {
+                displayPatterns(result.patterns);
+                document.getElementById("patternsSection").style.display = "block";
+            } else {
+                document.getElementById("patternsSection").style.display = "none";
+            }
+
+            // Nouvelle hypothèse
+            if (result.new_hypothesis) {
+                displayNewHypothesis(result.new_hypothesis);
+                document.getElementById("hypothesisSection").style.display = "block";
+            } else {
+                document.getElementById("hypothesisSection").style.display = "none";
+            }
+
             // Détails des modèles
             displayModelsDetails(result.top_features.models);
 
             // Graphique
             displayChart(result.predictions, result.confidences);
+        }
 
-            // Historique
-            await loadHistory();
+        // Afficher les motifs détectés
+        function displayPatterns(patterns) {
+            const container = document.getElementById("patterns");
+            let html = `<div class="patterns-grid">`;
+
+            for (const [patternType, patternData] of Object.entries(patterns)) {
+                if (Array.isArray(patternData)) {
+                    if (patternData.length > 0) {
+                        html += `
+                            <div class="pattern-card">
+                                <h4>${patternType.replace(/_/g, ' ')}</h4>
+                                <p>${patternData.join(", ")}</p>
+                            </div>
+                        `;
+                    }
+                } else if (typeof patternData === 'object' && patternData !== null) {
+                    html += `
+                        <div class="pattern-card">
+                            <h4>${patternType.replace(/_/g, ' ')}</h4>
+                            <p>${JSON.stringify(patternData)}</p>
+                        </div>
+                    `;
+                }
+            }
+
+            html += `</div>`;
+            container.innerHTML = html;
+        }
+
+        // Afficher une nouvelle hypothèse
+        function displayNewHypothesis(hypothesis) {
+            const container = document.getElementById("newHypothesis");
+            container.innerHTML = `
+                <p><strong>Hypothèse:</strong> ${hypothesis.description}</p>
+                <p><strong>Confiance:</strong> ${hypothesis.confidence}</p>
+                <p><strong>Statut:</strong> ${hypothesis.status}</p>
+                <div class="hypothesis-actions">
+                    <button onclick="validateHypothesis(${hypothesis.id})" class="btn-secondary">Valider</button>
+                    <button onclick="rejectHypothesis(${hypothesis.id})" class="btn-danger">Rejeter</button>
+                </div>
+            `;
+            // Ajouter à la liste locale
+            currentHypotheses.pending.push(hypothesis);
         }
 
         // Afficher les détails des modèles
@@ -166,6 +256,7 @@
                     <div class="model-card">
                         <h3>${name.toUpperCase()}</h3>
                         <p><strong>Poids:</strong> ${data.weight}</p>
+                        <p><strong>Performance:</strong> ${(data.performance * 100).toFixed(1)}%</p>
                         <p><strong>Prédictions:</strong> [${data.predictions.join(", ")}]</p>
                         <p><strong>Confiances:</strong> [${data.confidences.join(", ")}]</p>
                     </div>
@@ -190,9 +281,9 @@
                             label: "Valeurs prédites",
                             data: predictions,
                             backgroundColor: [
-                                "rgba(76, 175, 80, 0.7)",  // Vert
-                                "rgba(33, 150, 243, 0.7)", // Bleu
-                                "rgba(255, 193, 7, 0.7)"   // Orange
+                                "rgba(76, 175, 80, 0.7)",
+                                "rgba(33, 150, 243, 0.7)",
+                                "rgba(255, 193, 7, 0.7)"
                             ],
                             borderColor: [
                                 "rgba(76, 175, 80, 1)",
@@ -250,6 +341,7 @@
                             <tr>
                                 <th>Index</th>
                                 <th>Valeur</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -260,6 +352,9 @@
                         <tr>
                             <td>${index + 1}</td>
                             <td>${value}</td>
+                            <td>
+                                <button onclick="logActualValue(${value})" class="btn-small">Valider</button>
+                            </td>
                         </tr>
                     `;
                 });
@@ -274,6 +369,16 @@
             }
         }
 
+        // Enregistrer une valeur réelle (pour la validation)
+        async function logActualValue(value) {
+            const result = await callAPI("/actual_value", "POST", { value: value });
+            if (result) {
+                showError("✅ Valeur validée, poids des modèles mis à jour !");
+                // Recharger les poids après mise à jour
+                await loadHypotheses();
+            }
+        }
+
         // Réinitialiser la mémoire
         document.getElementById("loadHistory").addEventListener("click", loadHistory);
         document.getElementById("resetMemory").addEventListener("click", async () => {
@@ -282,12 +387,87 @@
                 document.getElementById("historyData").innerHTML = "<p>Mémoire réinitialisée !</p>";
                 document.getElementById("resultsCard").style.display = "none";
                 document.getElementById("modelsCard").style.display = "none";
-                showError("✅ Mémoire réinitialisée avec succès !");
+                document.getElementById("hypothesesCard").style.display = "none";
+                showError("✅ Mémoire de travail réinitialisée (mémoire d'apprentissage conservée)");
             }
         });
 
-        // Charger l'historique au démarrage
-        document.addEventListener("DOMContentLoaded", loadHistory);
+        // Charger les hypothèses
+        async function loadHypotheses() {
+            const result = await callAPI("/hypotheses");
+            if (result) {
+                currentHypotheses = {
+                    pending: result.hypotheses.filter(h => h.status === "pending"),
+                    validated: result.hypotheses.filter(h => h.status === "validated"),
+                    rejected: result.hypotheses.filter(h => h.status === "rejected")
+                };
+                showHypotheses("pending");
+                document.getElementById("hypothesesCard").style.display = "block";
+            }
+        }
+
+        // Afficher les hypothèses par statut
+        function showHypotheses(status) {
+            const container = document.getElementById("hypothesesContent");
+            const hypotheses = currentHypotheses[status];
+
+            if (hypotheses.length === 0) {
+                container.innerHTML = `<p>Aucune hypothèse ${status}.</p>`;
+                return;
+            }
+
+            let html = `<div class="hypotheses-list">`;
+            hypotheses.forEach(hypothesis => {
+                html += `
+                    <div class="hypothesis-card">
+                        <p><strong>ID:</strong> ${hypothesis.id}</p>
+                        <p><strong>Description:</strong> ${hypothesis.description}</p>
+                        <p><strong>Confiance:</strong> ${hypothesis.confidence}</p>
+                        <p><strong>Créée le:</strong> ${hypothesis.created_at}</p>
+                        ${status === "pending" ? `
+                            <div class="hypothesis-actions">
+                                <button onclick="validateHypothesis(${hypothesis.id})" class="btn-small btn-secondary">Valider</button>
+                                <button onclick="rejectHypothesis(${hypothesis.id})" class="btn-small btn-danger">Rejeter</button>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            });
+            html += `</div>`;
+            container.innerHTML = html;
+
+            // Mettre à jour les onglets
+            document.querySelectorAll(".tab-btn").forEach(btn => {
+                btn.classList.remove("active");
+            });
+            event.target.classList.add("active");
+        }
+
+        // Valider une hypothèse
+        async function validateHypothesis(hypothesisId) {
+            const result = await callAPI(`/validate_hypothesis/${hypothesisId}`, "POST");
+            if (result) {
+                showError("✅ Hypothèse validée !");
+                await loadHypotheses();
+                showHypotheses("validated");
+            }
+        }
+
+        // Rejeter une hypothèse
+        async function rejectHypothesis(hypothesisId) {
+            const result = await callAPI(`/reject_hypothesis/${hypothesisId}`, "POST");
+            if (result) {
+                showError("✅ Hypothèse rejetée !");
+                await loadHypotheses();
+                showHypotheses("rejected");
+            }
+        }
+
+        // Initialisation
+        document.addEventListener("DOMContentLoaded", async () => {
+            await loadHistory();
+            await loadHypotheses();
+        });
     </script>
 </body>
 </html>
