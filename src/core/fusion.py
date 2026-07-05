@@ -1,6 +1,5 @@
 from typing import List, Tuple, Dict, Optional, Any
-import numpy as np
-import random 
+import random
 from src.models.pattern_detection import PatternDetector
 from src.core.hypothesis import HypothesisGenerator
 from src.core.memory import LearningMemory
@@ -12,17 +11,23 @@ class ModelFusion:
             "bayesian": None,
             "timeseries": None,
             "ml": None,
-            "anomaly": None
+            "anomaly": None,
+            "deep_learning": None,  # ✅ NOUVEAU
+            "causal": None,        # ✅ NOUVEAU
+            "optimization": None   # ✅ NOUVEAU
         }
         self.learning_mem = learning_mem
         self.pattern_detector = PatternDetector()
         self.hypothesis_generator = HypothesisGenerator()
         self.default_weights = {
-            "statistical": 0.3,
-            "bayesian": 0.25,
-            "timeseries": 0.25,
+            "statistical": 0.25,
+            "bayesian": 0.20,
+            "timeseries": 0.20,
             "ml": 0.15,
-            "anomaly": 0.05
+            "anomaly": 0.10,
+            "deep_learning": 0.05,  # ✅ NOUVEAU
+            "causal": 0.05,        # ✅ NOUVEAU
+            "optimization": 0.05   # ✅ NOUVEAU
         }
 
     def update_all(self, new_values: List[float]):
@@ -54,16 +59,14 @@ class ModelFusion:
                     preds, confs = model.predict()
                     all_predictions[name] = preds
                     all_confidences[name] = confs
-                    # Estimer la performance (à améliorer avec des métriques réelles)
                     model_performance[name] = model.get_performance() if hasattr(model, 'get_performance') else 0.8
                 except Exception as e:
                     print(f"Erreur avec le modèle {name}: {e}")
-                    # Utiliser des valeurs par défaut en cas d'erreur
                     all_predictions[name] = [1.0, 1.5, 2.0]
                     all_confidences[name] = [0.75, 0.75, 0.75]
                     model_performance[name] = 0.5
 
-        # Récupérer les poids actuels (ou utiliser les poids par défaut)
+        # Récupérer les poids actuels
         current_weights = self.learning_mem.get_weights()
 
         # Fusion pondérée
@@ -92,9 +95,9 @@ class ModelFusion:
             for name in all_predictions
         }
 
-        # Générer une nouvelle hypothèse (1 fois sur 3)
+        # Générer une nouvelle hypothèse (30% de chance)
         new_hypothesis = None
-        if random.random() < 0.3:  # 30% de chance de générer une hypothèse
+        if random.random() < 0.3:
             new_hypothesis = self.hypothesis_generator.generate(patterns, history)
 
         return fused_predictions, fused_confidences, model_info, patterns, new_hypothesis
@@ -102,27 +105,22 @@ class ModelFusion:
     def update_weights(self, actual_value: float, predictions: Dict[str, List[float]]):
         """
         Met à jour les poids des modèles en fonction de la performance
-        (appelé après qu'une nouvelle valeur réelle soit connue)
         """
         errors = {}
         for name, preds in predictions.items():
-            # Calculer l'erreur (différence absolue moyenne)
-            error = abs(preds[0] - actual_value)  # On compare avec la première prédiction
+            error = abs(preds[0] - actual_value)
             errors[name] = error
-            # Loguer la performance
             self.learning_mem.log_performance(name, error)
 
-        # Mettre à jour les poids en fonction des erreurs (inverse de l'erreur)
+        # Mettre à jour les poids
         total_error = sum(errors.values())
         if total_error > 0:
             for name, error in errors.items():
-                # Nouveau poids = poids actuel * (1 - erreur/total_error)
                 new_weight = self.learning_mem.get_weights().get(name, self.default_weights.get(name, 0)) * (1 - error/total_error)
-                # Limiter entre 0.05 et 0.5
-                new_weight = max(0.05, min(0.5, new_weight))
+                new_weight = max(0.01, min(0.5, new_weight))  # Limiter entre 1% et 50%
                 self.learning_mem.update_weight(name, new_weight)
 
-        # Normaliser les poids pour qu'ils somment à 1
+        # Normaliser les poids
         self._normalize_weights()
 
     def _normalize_weights(self):
