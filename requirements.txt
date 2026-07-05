@@ -9,11 +9,7 @@ numpy==1.26.4
 scikit-learn==1.4.0
 pandas==2.2.0
 joblib==1.3.2
-scipy==1.12.0
-
-# Deep Learning
-tensorflow==2.16.1  # ✅ NOUVEAU pour LSTM
-keras==2.16.0      # ✅ NOUVEAU
+scipy==1.12.0  # ✅ Compatible Python 3.11
 
 # Base de données
 sqlalchemy==2.0.25
