@@ -11,7 +11,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.11"  # ✅ Python 3.11
+          python-version: "3.11"
 
       - name: Install dependencies
         run: |
@@ -21,5 +21,3 @@ jobs:
       - name: Run tests
         run: |
           python -m pytest src/tests/ -v
-        env:
-          GITHUB_ACTIONS: "true"  # ✅ Désactive Deep Learning dans les tests
