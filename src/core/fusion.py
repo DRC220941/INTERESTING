@@ -7,14 +7,14 @@ from src.core.memory import LearningMemory
 class ModelFusion:
     def __init__(self, learning_mem: LearningMemory):
         self.models = {
-            "statistical": None,  # À initialiser dans main.py
+            "statistical": None,
             "bayesian": None,
             "timeseries": None,
             "ml": None,
             "anomaly": None,
-            "deep_learning": None,  # ✅ NOUVEAU
-            "causal": None,        # ✅ NOUVEAU
-            "optimization": None   # ✅ NOUVEAU
+            "deep_learning": None,
+            "causal": None,
+            "optimization": None
         }
         self.learning_mem = learning_mem
         self.pattern_detector = PatternDetector()
@@ -25,15 +25,15 @@ class ModelFusion:
             "timeseries": 0.20,
             "ml": 0.15,
             "anomaly": 0.10,
-            "deep_learning": 0.05,  # ✅ NOUVEAU
-            "causal": 0.05,        # ✅ NOUVEAU
-            "optimization": 0.05   # ✅ NOUVEAU
+            "deep_learning": 0.05,
+            "causal": 0.05,
+            "optimization": 0.05
         }
 
     def update_all(self, new_values: List[float]):
         """Met à jour tous les modèles avec de nouvelles valeurs"""
         for model in self.models.values():
-            if model:
+            if model:  # ✅ Vérifie que le modèle existe
                 model.update(new_values)
 
     def predict(self, history: List[float]) -> Tuple[List[float], List[float], Dict, Dict, Optional[Dict]]:
@@ -54,7 +54,7 @@ class ModelFusion:
         model_performance = {}
 
         for name, model in self.models.items():
-            if model:
+            if model:  # ✅ Vérifie que le modèle existe
                 try:
                     preds, confs = model.predict()
                     all_predictions[name] = preds
