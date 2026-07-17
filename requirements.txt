@@ -11,8 +11,8 @@ pandas==2.2.0
 joblib==1.3.2
 scipy==1.12.0
 
-# ONNX Runtime (léger et gratuit)
-onnxruntime==1.16.3  # ✅ Remplace TensorFlow/Keras
+# ONNX Runtime (pour le Deep Learning)
+onnxruntime==1.17.0
 onnx==1.16.0
 
 # Base de données
