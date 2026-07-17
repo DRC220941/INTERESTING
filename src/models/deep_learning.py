@@ -11,15 +11,22 @@ class DeepLearningModel:
         self.model = None
         self.scaler = None
         self.history = []
-        self.is_trained = os.path.exists(model_path)  # ✅ Vérifie si le modèle existe
+        self.is_trained = False
         self._load_model()
 
     def _load_model(self):
         """Charge le modèle ONNX et le scaler"""
-        if os.path.exists(self.model_path):
-            self.model = ort.InferenceSession(self.model_path)
-        if os.path.exists(self.scaler_path):
-            self.scaler = joblib.load(self.scaler_path)
+        try:
+            if os.path.exists(self.model_path):
+                self.model = ort.InferenceSession(self.model_path)
+                self.is_trained = True
+            if os.path.exists(self.scaler_path):
+                self.scaler = joblib.load(self.scaler_path)
+        except Exception as e:
+            print(f"⚠️ Erreur lors du chargement du modèle ONNX : {e}")
+            self.model = None
+            self.scaler = None
+            self.is_trained = False
 
     def update(self, new_values: List[float]):
         """Met à jour l'historique avec de nouvelles valeurs"""
@@ -49,7 +56,7 @@ class DeepLearningModel:
             confidences = self._calculate_confidences(preds)
 
         except Exception as e:
-            print(f"Erreur ONNX: {e}")
+            print(f"⚠️ Erreur ONNX : {e}")
             preds = [1.5, 2.0, 2.5]
             confidences = [0.75, 0.75, 0.75]
 
