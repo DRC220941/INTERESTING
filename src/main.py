@@ -19,13 +19,17 @@ from src.models.anomaly_detection import AnomalyDetector
 from src.models.causal_model import CausalModel
 from src.models.optimization_model import OptimizationModel
 
-# Deep Learning UNIQUEMENT si ONNX Runtime est disponible
+# Deep Learning (toujours activé si onnxruntime est installé)
 try:
     from src.models.deep_learning import DeepLearningModel
-    DL_AVAILABLE = True
-except ImportError:
-    DL_AVAILABLE = False
-    print("ONNX Runtime non installé. Deep Learning désactivé.")
+    deep_learning_model = DeepLearningModel()
+    print("✅ Deep Learning activé (ONNX Runtime trouvé).")
+except ImportError as e:
+    print(f"⚠️ ONNX Runtime non disponible : {e}. Deep Learning désactivé.")
+    deep_learning_model = None
+except Exception as e:
+    print(f"⚠️ Erreur lors du chargement du Deep Learning : {e}. Deep Learning désactivé.")
+    deep_learning_model = None
 
 # ============================================================================
 # MODÈLES PYDANTIC
@@ -66,9 +70,6 @@ anomaly_model = AnomalyDetector()
 causal_model = CausalModel()
 optimization_model = OptimizationModel()
 
-# Deep Learning UNIQUEMENT si disponible
-deep_learning_model = DeepLearningModel() if DL_AVAILABLE else None
-
 # Fusion
 fusion = ModelFusion(learning_mem)
 fusion.models = {
@@ -79,7 +80,7 @@ fusion.models = {
     "anomaly": anomaly_model,
     "causal": causal_model,
     "optimization": optimization_model,
-    "deep_learning": deep_learning_model  # None si ONNX non disponible
+    "deep_learning": deep_learning_model,
 }
 
 # Initialiser les poids par défaut
@@ -119,7 +120,7 @@ async def health_check():
         "working_memory_count": working_mem.count(),
         "models": list(fusion.models.keys()),
         "model_weights": learning_mem.get_weights(),
-        "deep_learning_available": DL_AVAILABLE
+        "deep_learning_available": deep_learning_model is not None
     }
 
 @app.post("/predict", response_model=PredictionResponse)
@@ -134,8 +135,6 @@ async def predict(request: MultiplicateurRequest):
 
     if len(history) >= 3:
         predictions, confidences, model_info, patterns, new_hypothesis = fusion.predict(history)
-
-        # Vérifier les confiances
         warnings = [] if all(c >= 0.77 for c in confidences) else ["⚠️ Confiance < 77%"]
     else:
         predictions = [1.0, 1.5, 2.0]
@@ -179,14 +178,10 @@ async def predict(request: MultiplicateurRequest):
 
 @app.post("/actual_value")
 async def log_actual_value(value: float):
-    """
-    Endpoint pour enregistrer une valeur réelle (pour la validation)
-    """
     history = working_mem.get_all()
     if len(history) >= 3:
         last_predictions = {name: model.predict()[0] for name, model in fusion.models.items() if model}
         fusion.update_weights(value, last_predictions)
-
     return {"status": "success", "message": "Valeur réelle enregistrée, poids des modèles mis à jour"}
 
 @app.post("/reset")
@@ -216,18 +211,3 @@ async def validate_hypothesis(hypothesis_id: int):
 async def reject_hypothesis(hypothesis_id: int):
     learning_mem.update_hypothesis(hypothesis_id, "rejected", 0.1)
     return {"status": "success", "message": f"Hypothèse {hypothesis_id} rejetée"}
-
-@app.post("/train_deep_learning")
-async def train_deep_learning():
-    """
-    Endpoint pour entraîner le modèle Deep Learning (à appeler depuis Colab)
-    """
-    if not DL_AVAILABLE:
-        raise HTTPException(status_code=400, detail="Deep Learning non disponible")
-
-    history = working_mem.get_all()
-    if len(history) < 20:
-        raise HTTPException(status_code=400, detail="Pas assez de données pour l'entraînement (minimum 20 valeurs)")
-
-    deep_learning_model.train_and_save(history)
-    return {"status": "success", "message": "Modèle Deep Learning entraîné et sauvegardé"}
