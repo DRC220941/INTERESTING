@@ -33,7 +33,7 @@ class ModelFusion:
     def update_all(self, new_values: List[float]):
         """Met à jour tous les modèles avec de nouvelles valeurs"""
         for model in self.models.values():
-            if model:  # ✅ Vérifie que le modèle existe
+            if model:
                 model.update(new_values)
 
     def predict(self, history: List[float]) -> Tuple[List[float], List[float], Dict, Dict, Optional[Dict]]:
@@ -54,14 +54,14 @@ class ModelFusion:
         model_performance = {}
 
         for name, model in self.models.items():
-            if model:  # ✅ Vérifie que le modèle existe
+            if model:
                 try:
                     preds, confs = model.predict()
                     all_predictions[name] = preds
                     all_confidences[name] = confs
                     model_performance[name] = model.get_performance() if hasattr(model, 'get_performance') else 0.8
                 except Exception as e:
-                    print(f"Erreur avec le modèle {name}: {e}")
+                    print(f"⚠️ Erreur avec le modèle {name}: {e}")
                     all_predictions[name] = [1.0, 1.5, 2.0]
                     all_confidences[name] = [0.75, 0.75, 0.75]
                     model_performance[name] = 0.5
